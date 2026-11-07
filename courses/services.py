@@ -145,22 +145,32 @@ def update_course_link(*, link: CourseLink, **fields) -> CourseLink:
     return link
 
 
+def delete_course_link(*, link: CourseLink) -> None:
+    link.delete()
+
+
 def upload_course_pdf(*, course: Course, title: str, file: UploadedFile, order: int = 0) -> CoursePdf:
-    if not file.read(5).startswith(b"%PDF"):
+    # The PDF spec lets the "%PDF-" header sit anywhere in the first 1024 bytes, not only at offset 0.
+    if b"%PDF-" not in file.read(1024):
         raise ApplicationError("File is not a PDF.")
     file.seek(0)
     object_name = f"course_{course.id}/{uuid.uuid4()}.pdf"
-    minio_apis.upload_private_file(
-        bucket=settings.MINIO_COURSE_PDF_BUCKET, object_name=object_name, file=file, content_type="application/pdf"
-    )
-    return CoursePdf.objects.create(
-        course=course, title=title, order=order, object_name=object_name, file_size_bytes=file.size
-    )
+    bucket = settings.MINIO_COURSE_PDF_BUCKET
+    minio_apis.upload_private_file(bucket=bucket, object_name=object_name, file=file, content_type="application/pdf")
+    try:
+        return CoursePdf.objects.create(
+            course=course, title=title, order=order, object_name=object_name, file_size_bytes=file.size
+        )
+    except Exception:
+        minio_apis.delete_file(bucket=bucket, object_name=object_name)  # don't orphan the uploaded file
+        raise
 
 
 def delete_course_pdf(*, pdf: CoursePdf) -> None:
-    minio_apis.delete_file(bucket=settings.MINIO_COURSE_PDF_BUCKET, object_name=pdf.object_name)
+    # Row first: a leftover file is harmless, a row pointing at a missing file breaks downloads.
+    object_name = pdf.object_name
     pdf.delete()
+    minio_apis.delete_file(bucket=settings.MINIO_COURSE_PDF_BUCKET, object_name=object_name)
 
 
 def get_video_download_key(*, user: BaseUser, video_id: int, ip_address: str | None, device_id: str = "") -> dict:

@@ -11,6 +11,7 @@ from courses.models import Course, CourseLink, CoursePdf, Enrollment, Video
 from courses.services import (
     create_course,
     create_course_link,
+    delete_course_link,
     delete_course_pdf,
     get_course_materials,
     update_course_link,
@@ -438,7 +439,7 @@ class AdminCourseLinkDetailApi(APIView):
 
     @extend_schema(summary="Delete a course link (admin)")
     def delete(self, request, link_id: int):
-        get_object_or_404(CourseLink, id=link_id).delete()
+        delete_course_link(link=get_object_or_404(CourseLink, id=link_id))
         return Response(status=204)
 
 

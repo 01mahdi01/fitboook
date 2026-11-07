@@ -51,7 +51,7 @@ class CourseMaterialsTests(TestCase):
         bad = SimpleUploadedFile("x.pdf", b"not a pdf", content_type="application/pdf")
         self.assertEqual(self.api.post(url, {"title": "Bad", "file": bad}, format="multipart").status_code, 400)
 
-        good = SimpleUploadedFile("x.pdf", b"%PDF-1.4 hello", content_type="application/pdf")
+        good = SimpleUploadedFile("x.pdf", b"\x00junk%PDF-1.4 hello", content_type="application/pdf")
         resp = self.api.post(url, {"title": "Book", "file": good}, format="multipart")
         self.assertEqual(resp.status_code, 201)
         self.assertTrue(resp.data["object_name"].startswith(f"course_{self.course.id}/"))
