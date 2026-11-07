@@ -1,0 +1,97 @@
+{
+  "info": {
+    "_postman_id": "b1e2c3d4-5f6a-4b7c-8d9e-0f1a2b3c4d5e",
+    "name": "Video App - Uploads",
+    "description": "Upload video, upload cover image, list a course's videos, and fetch a cover image. Set base_url, access_token, and course_id in the collection variables (Variables tab) before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Upload Video",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "title", "value": "Lesson 1", "type": "text" },
+            { "key": "order", "value": "1", "type": "text" },
+            { "key": "description", "value": "", "type": "text" },
+            { "key": "file", "type": "file", "src": [] }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/courses/admin/{{course_id}}/videos/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "courses", "admin", "{{course_id}}", "videos", ""]
+        },
+        "description": "Admin-only. Multipart upload; 'file' is the raw video, encrypted+uploaded asynchronously by a Celery worker. Poll List Videos to see status move pending -> ready."
+      }
+    },
+    {
+      "name": "Upload Cover Image",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "image", "type": "file", "src": [] }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/courses/admin/{{course_id}}/cover/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "courses", "admin", "{{course_id}}", "cover", ""]
+        },
+        "description": "Admin-only. Multipart upload, field name must be 'image'. Response includes the course with its new cover_image_url."
+      }
+    },
+    {
+      "name": "List Videos",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/courses/admin/{{course_id}}/videos/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "courses", "admin", "{{course_id}}", "videos", ""]
+        },
+        "description": "Admin-only. Lists all videos for the course with id/title/order/duration/file_size/status/created_at."
+      }
+    },
+    {
+      "name": "Get Cover Image",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{cover_image_url}}",
+          "host": ["{{cover_image_url}}"]
+        },
+        "description": "No auth needed — the cover bucket is public. Paste the cover_image_url from a course response (course list/detail, or the Upload Cover Image response) into the 'cover_image_url' collection variable, then send. Postman will render the image in the response preview."
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "https://api.fitboook.ir" },
+    { "key": "access_token", "value": "" },
+    { "key": "course_id", "value": "1" },
+    { "key": "cover_image_url", "value": "http://45.135.242.163:9000/course-covers/course_1/cover_xxx.jpg" }
+  ]
+}

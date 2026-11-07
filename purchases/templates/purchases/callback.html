@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if success %}پرداخت موفق{% else %}پرداخت ناموفق{% endif %}</title>
+<style>
+  body {
+    font-family: Tahoma, "Segoe UI", sans-serif;
+    background: #f5f5f7;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    padding: 40px 32px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+  }
+  .icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 32px;
+    color: #fff;
+  }
+  .icon.success { background: #22c55e; }
+  .icon.failure { background: #ef4444; }
+  h1 { font-size: 20px; margin: 0 0 8px; color: #1a1a1a; }
+  p { color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 24px; }
+  .btn {
+    display: inline-block;
+    background: #2563eb;
+    color: #fff;
+    text-decoration: none;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+  }
+  .btn:active { opacity: 0.85; }
+</style>
+</head>
+<body>
+  <div class="card">
+    {% if success %}
+      <div class="icon success">&#10003;</div>
+      <h1>پرداخت با موفقیت انجام شد</h1>
+      <p>خرید شما با موفقیت ثبت شد. برای ادامه به اپلیکیشن بازگردید.</p>
+    {% else %}
+      <div class="icon failure">&#10005;</div>
+      <h1>پرداخت ناموفق بود</h1>
+      <p>{{ message }}</p>
+    {% endif %}
+    <a class="btn" href="fitboook://payment/callback">بازگشت به اپلیکیشن</a>
+  </div>
+</body>
+</html>

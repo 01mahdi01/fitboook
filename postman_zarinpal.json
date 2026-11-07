@@ -1,0 +1,140 @@
+{
+  "info": {
+    "_postman_id": "c2d3e4f5-6a7b-4c8d-9e0f-1a2b3c4d5e6f",
+    "name": "Video App - ZarinPal Payments",
+    "description": "Login, start a ZarinPal payment for a course, and confirm it via callback. Set base_url, phone, password, and course_id in the collection Variables before running. Login and Start Purchase auto-save access_token/purchase_id/authority via their Tests scripts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('access_token', body.access);",
+              "pm.collectionVariables.set('refresh_token', body.refresh);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/login/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "login", ""]
+        }
+      }
+    },
+    {
+      "name": "2. List Courses (pick a course_id)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/courses/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "courses", ""]
+        },
+        "description": "No auth needed. Copy an id from the response into the 'course_id' collection variable, or just leave course_id as-is if already set."
+      }
+    },
+    {
+      "name": "3. Start Purchase",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  pm.collectionVariables.set('purchase_id', body.purchase_id);",
+              "  console.log('payment_url:', body.payment_url);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{access_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"course_id\": {{course_id}}\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/purchases/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "purchases", ""]
+        },
+        "description": "Creates a pending Purchase row and asks ZarinPal for a payment_url. Requires ZARINPAL_MERCHANT_ID to be configured server-side, and the callback domain to be registered in the ZarinPal merchant panel (see collection description / chat notes) — otherwise this returns a 400 with ZarinPal's rejection reason instead of a payment_url."
+      }
+    },
+    {
+      "name": "4. Open payment_url in a browser",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://www.zarinpal.com/pg/StartPay/{{authority}}",
+          "host": ["https://www.zarinpal.com"],
+          "path": ["pg", "StartPay", "{{authority}}"]
+        },
+        "description": "Not meant to be sent from Postman — copy the payment_url from step 3's response and open it in an actual browser to complete payment on ZarinPal's hosted page. Set 'authority' collection variable manually from step 3's response if you want this request populated for reference."
+      }
+    },
+    {
+      "name": "5. Payment Callback (ZarinPal redirects here)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/purchases/callback/?purchase_id={{purchase_id}}&Authority={{authority}}&Status=OK",
+          "host": ["{{base_url}}"],
+          "path": ["api", "purchases", "callback", ""],
+          "query": [
+            { "key": "purchase_id", "value": "{{purchase_id}}" },
+            { "key": "Authority", "value": "{{authority}}" },
+            { "key": "Status", "value": "OK" }
+          ]
+        },
+        "description": "No auth needed — this is the URL ZarinPal itself redirects the user's browser to after payment. Server re-verifies with ZarinPal regardless of the Status query param. Set 'authority' manually to the Authority value ZarinPal put on the redirect URL if testing this step directly."
+      }
+    },
+    {
+      "name": "6. My Purchases (confirm status)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+        "url": {
+          "raw": "{{base_url}}/api/purchases/my/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "purchases", "my", ""]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "https://api.fitboook.ir" },
+    { "key": "phone", "value": "11111111111" },
+    { "key": "password", "value": "admin" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "course_id", "value": "9" },
+    { "key": "purchase_id", "value": "" },
+    { "key": "authority", "value": "" }
+  ]
+}

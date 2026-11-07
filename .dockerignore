@@ -1,0 +1,11 @@
+.venv
+.env
+.env.example
+.env.prod.example
+__pycache__
+*.pyc
+.git
+graphify-out
+staticfiles
+media
+docs
