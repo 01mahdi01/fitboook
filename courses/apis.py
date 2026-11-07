@@ -7,9 +7,14 @@ from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from courses.models import Course, Enrollment, Video
+from courses.models import Course, CourseLink, CoursePdf, Enrollment, Video
 from courses.services import (
     create_course,
+    create_course_link,
+    delete_course_pdf,
+    get_course_materials,
+    update_course_link,
+    upload_course_pdf,
     create_video_upload,
     delete_course,
     delete_video,
@@ -124,6 +129,39 @@ class VideoKeyApi(APIView):
         )
         return Response(self.OutputVideoKeySerializer(result).data)
 
+
+
+class _CourseLinkOutputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseLink
+        fields = ["id", "title", "url", "order"]
+
+
+class _CoursePdfOutputSerializer(serializers.ModelSerializer):
+    download_url = serializers.CharField()
+
+    class Meta:
+        model = CoursePdf
+        fields = ["id", "title", "order", "file_size_bytes", "download_url"]
+
+
+class CourseMaterialsApi(APIView):
+    """Links and PDFs of a course — only for users with an active enrollment (or admins).
+    PDF `download_url`s are presigned and expire after `expires_in` seconds; fetch this again for fresh ones."""
+
+    class OutputCourseMaterialsSerializer(serializers.Serializer):
+        links = _CourseLinkOutputSerializer(many=True)
+        pdfs = _CoursePdfOutputSerializer(many=True)
+        expires_in = serializers.IntegerField()
+
+    @extend_schema(
+        responses=OutputCourseMaterialsSerializer,
+        summary="Get a purchased course's links and PDFs (403 if not enrolled or access expired)",
+    )
+    def get(self, request, course_id: int):
+        course = get_object_or_404(Course, id=course_id)
+        result = get_course_materials(user=request.user, course=course)
+        return Response(self.OutputCourseMaterialsSerializer(result).data)
 
 class AdminCourseOutputSerializer(serializers.ModelSerializer):
     class Meta:
@@ -354,3 +392,92 @@ class AdminUserEnrollmentsApi(APIView):
         user = get_object_or_404(BaseUser, id=user_id)
         result = get_user_enrollments(user=user)
         return Response(self.OutputUserEnrollmentsSerializer(result).data)
+
+
+class AdminCourseLinkListCreateApi(APIView):
+    permission_classes = [IsAdminUser]
+
+    class InputCourseLinkSerializer(serializers.Serializer):
+        title = serializers.CharField(max_length=255)
+        url = serializers.URLField(max_length=1000)
+        order = serializers.IntegerField(min_value=0, default=0)
+
+    @extend_schema(responses=_CourseLinkOutputSerializer(many=True), summary="List a course's links (admin)")
+    def get(self, request, course_id: int):
+        course = get_object_or_404(Course, id=course_id)
+        return Response(_CourseLinkOutputSerializer(course.links.all(), many=True).data)
+
+    @extend_schema(
+        request=InputCourseLinkSerializer, responses=_CourseLinkOutputSerializer, summary="Add a link to a course (admin)"
+    )
+    def post(self, request, course_id: int):
+        course = get_object_or_404(Course, id=course_id)
+        serializer = self.InputCourseLinkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        link = create_course_link(course=course, **serializer.validated_data)
+        return Response(_CourseLinkOutputSerializer(link).data, status=201)
+
+
+class AdminCourseLinkDetailApi(APIView):
+    permission_classes = [IsAdminUser]
+
+    class InputCourseLinkUpdateSerializer(serializers.Serializer):
+        title = serializers.CharField(max_length=255, required=False)
+        url = serializers.URLField(max_length=1000, required=False)
+        order = serializers.IntegerField(min_value=0, required=False)
+
+    @extend_schema(
+        request=InputCourseLinkUpdateSerializer, responses=_CourseLinkOutputSerializer, summary="Update a course link (admin)"
+    )
+    def patch(self, request, link_id: int):
+        link = get_object_or_404(CourseLink, id=link_id)
+        serializer = self.InputCourseLinkUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        link = update_course_link(link=link, **serializer.validated_data)
+        return Response(_CourseLinkOutputSerializer(link).data)
+
+    @extend_schema(summary="Delete a course link (admin)")
+    def delete(self, request, link_id: int):
+        get_object_or_404(CourseLink, id=link_id).delete()
+        return Response(status=204)
+
+
+class AdminCoursePdfOutputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoursePdf
+        fields = ["id", "title", "order", "object_name", "file_size_bytes", "created_at"]
+
+
+class AdminCoursePdfListUploadApi(APIView):
+    permission_classes = [IsAdminUser]
+
+    class InputCoursePdfUploadSerializer(serializers.Serializer):
+        title = serializers.CharField(max_length=255)
+        order = serializers.IntegerField(min_value=0, default=0)
+        file = serializers.FileField()
+
+    @extend_schema(responses=AdminCoursePdfOutputSerializer(many=True), summary="List a course's PDFs (admin)")
+    def get(self, request, course_id: int):
+        course = get_object_or_404(Course, id=course_id)
+        return Response(AdminCoursePdfOutputSerializer(course.pdfs.all(), many=True).data)
+
+    @extend_schema(
+        request={"multipart/form-data": InputCoursePdfUploadSerializer},
+        responses=AdminCoursePdfOutputSerializer,
+        summary="Upload a PDF for a course (admin); stored in the private MinIO bucket",
+    )
+    def post(self, request, course_id: int):
+        course = get_object_or_404(Course, id=course_id)
+        serializer = self.InputCoursePdfUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pdf = upload_course_pdf(course=course, **serializer.validated_data)
+        return Response(AdminCoursePdfOutputSerializer(pdf).data, status=201)
+
+
+class AdminCoursePdfDetailApi(APIView):
+    permission_classes = [IsAdminUser]
+
+    @extend_schema(summary="Delete a course PDF and its file in MinIO (admin)")
+    def delete(self, request, pdf_id: int):
+        delete_course_pdf(pdf=get_object_or_404(CoursePdf, id=pdf_id))
+        return Response(status=204)

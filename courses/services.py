@@ -8,9 +8,9 @@ from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
 
-from config.errors import NotFoundError, PermissionDeniedError
+from config.errors import ApplicationError, NotFoundError, PermissionDeniedError
 from courses import encription_methods
-from courses.models import Course, Enrollment, Video, VideoKeyIssuance
+from courses.models import Course, CourseLink, CoursePdf, Enrollment, Video, VideoKeyIssuance
 from courses.tasks import encrypt_and_upload_video
 from storage import minio_apis
 from users.models import BaseUser
@@ -82,6 +82,8 @@ def update_course(*, course: Course, **fields) -> Course:
 def delete_course(*, course: Course) -> None:
     for video in course.videos.exclude(object_name=""):
         minio_apis.delete_file(bucket=settings.MINIO_VIDEO_BUCKET, object_name=video.object_name)
+    for pdf in course.pdfs.all():
+        minio_apis.delete_file(bucket=settings.MINIO_COURSE_PDF_BUCKET, object_name=pdf.object_name)
     course.delete()
 
 
@@ -109,6 +111,58 @@ def create_video_upload(
     return video
 
 
+def ensure_course_access(*, user: BaseUser, course: Course) -> None:
+    """Single gate for paid course content (videos, links, PDFs): staff, or an active enrollment."""
+    if user.is_staff:
+        return
+    try:
+        enrollment = Enrollment.objects.get(user=user, course=course)
+    except Enrollment.DoesNotExist:
+        raise PermissionDeniedError("You are not enrolled in this course.")
+    if not enrollment.is_active:
+        raise PermissionDeniedError("Your access to this course has expired.")
+
+
+def get_course_materials(*, user: BaseUser, course: Course) -> dict:
+    ensure_course_access(user=user, course=course)
+    ttl = settings.MINIO_PRESIGNED_URL_TTL_SECONDS
+    pdfs = list(course.pdfs.all())
+    for pdf in pdfs:
+        pdf.download_url = minio_apis.get_download_url(
+            bucket=settings.MINIO_COURSE_PDF_BUCKET, object_name=pdf.object_name, ttl_seconds=ttl
+        )
+    return {"links": list(course.links.all()), "pdfs": pdfs, "expires_in": ttl}
+
+
+def create_course_link(*, course: Course, title: str, url: str, order: int = 0) -> CourseLink:
+    return CourseLink.objects.create(course=course, title=title, url=url, order=order)
+
+
+def update_course_link(*, link: CourseLink, **fields) -> CourseLink:
+    for field, value in fields.items():
+        setattr(link, field, value)
+    link.save(update_fields=list(fields.keys()))
+    return link
+
+
+def upload_course_pdf(*, course: Course, title: str, file: UploadedFile, order: int = 0) -> CoursePdf:
+    if not file.read(5).startswith(b"%PDF"):
+        raise ApplicationError("File is not a PDF.")
+    file.seek(0)
+    object_name = f"course_{course.id}/{uuid.uuid4()}.pdf"
+    minio_apis.upload_private_file(
+        bucket=settings.MINIO_COURSE_PDF_BUCKET, object_name=object_name, file=file, content_type="application/pdf"
+    )
+    return CoursePdf.objects.create(
+        course=course, title=title, order=order, object_name=object_name, file_size_bytes=file.size
+    )
+
+
+def delete_course_pdf(*, pdf: CoursePdf) -> None:
+    minio_apis.delete_file(bucket=settings.MINIO_COURSE_PDF_BUCKET, object_name=pdf.object_name)
+    pdf.delete()
+
+
 def get_video_download_key(*, user: BaseUser, video_id: int, ip_address: str | None, device_id: str = "") -> dict:
     try:
         video = Video.objects.select_related("course").get(id=video_id)
@@ -118,13 +172,7 @@ def get_video_download_key(*, user: BaseUser, video_id: int, ip_address: str | N
     if video.status != Video.ProcessingStatus.READY:
         raise NotFoundError("Video is not ready yet.")
 
-    if not user.is_staff:
-        try:
-            enrollment = Enrollment.objects.get(user=user, course=video.course)
-        except Enrollment.DoesNotExist:
-            raise PermissionDeniedError("You are not enrolled in this course.")
-        if not enrollment.is_active:
-            raise PermissionDeniedError("Your access to this course has expired.")
+    ensure_course_access(user=user, course=video.course)
 
     VideoKeyIssuance.objects.create(user=user, video=video, ip_address=ip_address, device_id=device_id)
 

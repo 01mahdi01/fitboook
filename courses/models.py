@@ -56,6 +56,40 @@ class Video(models.Model):
         return f"{self.course.title} - {self.title}"
 
 
+
+class CourseLink(models.Model):
+    """External link attached to a course (e.g. a Telegram group, a form); shown only to enrolled users."""
+
+    course = models.ForeignKey(Course, related_name="links", on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    url = models.URLField(max_length=1000)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"
+
+
+class CoursePdf(models.Model):
+    """PDF stored in the private MinIO bucket (settings.MINIO_COURSE_PDF_BUCKET) at `object_name`;
+    enrolled users get short-lived presigned URLs, never a permanent link."""
+
+    course = models.ForeignKey(Course, related_name="pdfs", on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    order = models.PositiveIntegerField(default=0)
+    object_name = models.CharField(max_length=255)
+    file_size_bytes = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"
+
 class Enrollment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="enrollments", on_delete=models.CASCADE)
     course = models.ForeignKey(Course, related_name="enrollments", on_delete=models.CASCADE)

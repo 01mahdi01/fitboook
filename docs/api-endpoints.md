@@ -28,17 +28,24 @@ Endpoints marked "paginated" return `{"count", "next", "previous", "results"}` a
 | GET | `` | none | List published courses (instructor, category, level, cover image, benefits, etc.) |
 | GET | `<course_id>/` | none | Published course detail + video list (title/description/duration only, no keys) |
 | GET | `my-enrollments/` | user | Courses the current user currently has active (non-expired) access to |
+| GET | `<course_id>/materials/` | enrolled user | The course's `links` and `pdfs` (each PDF with a presigned `download_url` valid `expires_in` seconds). 403 if not bought or access expired |
 | GET | `videos/<video_id>/key/` | user | Issue decryption key + presigned download URL (enrollment-gated, expiry-checked) |
 | GET/POST | `admin/` | admin | List / create courses |
 | GET/PATCH/DELETE | `admin/<course_id>/` | admin | Get / update / delete a course |
 | GET/POST | `admin/<course_id>/videos/` | admin | List a course's videos / upload a new one (title, description, order, duration) |
 | DELETE | `admin/videos/<video_id>/` | admin | Delete a video |
+| GET/POST | `admin/<course_id>/links/` | admin | List / add a link (`title`, `url`, `order`) |
+| PATCH/DELETE | `admin/links/<link_id>/` | admin | Update / delete a link |
+| GET/POST | `admin/<course_id>/pdfs/` | admin | List / upload a PDF (multipart: `title`, `order`, `file`); stored in the private `course-pdfs` MinIO bucket |
+| DELETE | `admin/pdfs/<pdf_id>/` | admin | Delete a PDF and its file in MinIO |
 | POST | `admin/<course_id>/enrollments/<user_id>/` | admin | Grant a user access to a course (optional `expires_at`, defaults to the course's `access_duration_days`) |
 | DELETE | `admin/<course_id>/enrollments/<user_id>/` | admin | Revoke a user's access to a course |
 | POST | `admin/<course_id>/enrollments/<user_id>/renew/` | admin | Extend/renew a user's existing access |
 | GET | `admin/users/<user_id>/enrollments/` | admin | A user's active and expired enrollments (for the admin user-detail page) |
 
 Course fields: `title`, `slug`, `description`, `short_description`, `price`, `instructor_name`, `category`, `level` (`beginner`/`intermediate`/`advanced`), `cover_image_url`, `benefits` (one per line), `access_duration_days` (blank = lifetime).
+
+Links and PDFs are never included in the public course list/detail — only via `materials/`.
 
 Video fields: `title`, `description`, `order`, `duration_seconds`, `file_size_bytes` (auto-computed on upload), `status`.
 

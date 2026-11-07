@@ -24,5 +24,12 @@ if ! $DC up -d; then
   $DC up -d
 fi
 
+# nginx.conf is a single-file bind mount: git replaces the file (new inode), so the running container keeps
+# the old config until it's restarted. Restart only when the content actually differs.
+if ! $DC exec -T nginx cat /etc/nginx/nginx.conf | cmp -s - nginx/nginx.conf; then
+  echo "nginx.conf changed; restarting nginx..."
+  $DC restart nginx
+fi
+
 $DC ps
 echo "Deployed $(git rev-parse --short HEAD 2>/dev/null || echo '(no git)')."

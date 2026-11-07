@@ -9,6 +9,13 @@ def upload_file(*, bucket: str, object_name: str, file_path: str) -> None:
     minio_apiclient.put_object(client, bucket, object_name, file_path)
 
 
+def upload_private_file(*, bucket: str, object_name: str, file, content_type: str) -> None:
+    """Upload an uploaded-file stream to a private bucket; reachable only via get_download_url()."""
+    client = minio_apiclient.get_client()
+    minio_apiclient.ensure_bucket(client, bucket)
+    minio_apiclient.put_object_stream(client, bucket, object_name, file, file.size, content_type)
+
+
 def upload_public_image(*, bucket: str, object_name: str, file) -> str:
     """Upload an image to a public-read bucket and return its publicly reachable direct URL."""
     client = minio_apiclient.get_client()
