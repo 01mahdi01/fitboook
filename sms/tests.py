@@ -111,3 +111,11 @@ class SmsTests(TestCase):
         for _ in range(2):  # second call isn't blocked by cooldown
             with self.assertRaises(SmsDeliveryError):
                 services.request_otp(phone="0912", purpose="t")
+
+    @mock.patch("sms.smsir_apis.send_bulk")
+    def test_otp_goes_as_normal_sms(self, send_bulk):
+        with override_settings(SMSIR_API_KEY="k"):
+            services.request_otp(phone="+989121234567", purpose="t")
+        mobiles, message = send_bulk.call_args.kwargs["mobiles"], send_bulk.call_args.kwargs["message"]
+        self.assertEqual(mobiles, ["09121234567"])
+        self.assertRegex(message, r"\d{6}")

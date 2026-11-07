@@ -41,7 +41,7 @@ def get_client() -> SmsIr:
 
 def call(send: Callable[[], Response]) -> Any:
     """Run one sms.ir request, retrying transient failures (network errors, timeouts, 5xx).
-    sms.ir rejections (no credit, bad line/template...) are not retried, since retrying won't fix them."""
+    sms.ir rejections (no credit, inactive line...) are not retried, since retrying won't fix them."""
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             response = send()
