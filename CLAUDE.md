@@ -15,7 +15,7 @@ scripts/deploy-remote.sh
 
 It refuses to run with uncommitted changes or off `main`, then:
 1. `git push origin main`
-2. `ssh -A` into the server and runs `scripts/deploy.sh` there, which:
+2. `ssh -A` into the server, `git pull` (so the newest deploy script runs), then `scripts/deploy.sh`, which:
    - `git pull --ff-only`
    - rebuilds `web` + `worker` images (new requirements get installed here)
    - `up -d` — migrations + collectstatic run automatically via `scripts/entrypoint.sh`

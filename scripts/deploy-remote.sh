@@ -11,7 +11,8 @@ HEALTH_URL="${HEALTH_URL:-https://api.fitboook.ir/api/schema/}"
 [ "$(git branch --show-current)" = main ] || { echo "Deploy from main only." >&2; exit 1; }
 
 git push origin main
-ssh -A "$SERVER" "cd $APP_DIR && scripts/deploy.sh"
+# Pull before running deploy.sh, so the server always runs the newest version of the deploy script itself.
+ssh -A "$SERVER" "cd $APP_DIR && git pull --ff-only && scripts/deploy.sh"
 
 code=000
 for _ in $(seq 1 12); do
