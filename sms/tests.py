@@ -119,3 +119,18 @@ class SmsTests(TestCase):
         mobiles, message = send_bulk.call_args.kwargs["mobiles"], send_bulk.call_args.kwargs["message"]
         self.assertEqual(mobiles, ["09121234567"])
         self.assertRegex(message, r"\d{6}")
+
+    @mock.patch("sms.services.smsir_services.deliver_otp")
+    def test_password_reset_two_step_flow_used_by_app_builds(self, deliver):
+        BaseUser.objects.create_user(phone="09121234567", password="old-Pass-123")
+        api = APIClient()
+        api.post("/api/users/password-reset/request/", {"phone": "09121234567"})
+        code = deliver.call_args.kwargs["code"]
+        body = {"phone": "09121234567", "code": "000000", "new_password": "n-Pass-789", "confirm_password": "n-Pass-789"}
+        self.assertEqual(api.post("/api/users/password-reset/confirm/", body).status_code, 400)  # wrong code
+        body["code"] = code
+        self.assertEqual(api.post("/api/users/password-reset/confirm/", body).status_code, 204)
+        self.assertEqual(api.post("/api/users/password-reset/confirm/", body).status_code, 400)  # code consumed
+        self.assertTrue(BaseUser.objects.get(phone="09121234567").check_password("n-Pass-789"))
+        missing = {"new_password": "a", "confirm_password": "a"}
+        self.assertEqual(api.post("/api/users/password-reset/confirm/", missing).status_code, 400)

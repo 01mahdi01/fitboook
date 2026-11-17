@@ -187,11 +187,15 @@ class VerifyPasswordResetApi(APIView):
 @permission_classes([AllowAny])
 class ConfirmPasswordResetApi(APIView):
     class InputConfirmResetSerializer(serializers.Serializer):
-        reset_token = serializers.CharField()
+        reset_token = serializers.CharField(required=False)
+        phone = serializers.CharField(required=False, validators=[validate_phone])
+        code = serializers.CharField(required=False)
         new_password = serializers.CharField(write_only=True)
         confirm_password = serializers.CharField(write_only=True)
 
         def validate(self, data):
+            if not data.get("reset_token") and not (data.get("phone") and data.get("code")):
+                raise serializers.ValidationError("Provide reset_token, or phone and code.")
             if data["new_password"] != data["confirm_password"]:
                 raise serializers.ValidationError("Confirm password is not equal to new password")
             return data
@@ -199,14 +203,18 @@ class ConfirmPasswordResetApi(APIView):
     @extend_schema(
         tags=["sms"],
         request=InputConfirmResetSerializer,
-        summary="Set a new password using the reset_token; revokes all existing sessions",
+        summary="Set a new password with either reset_token (from verify/) or phone + code directly; "
+        "revokes all existing sessions",
     )
     def post(self, request):
         serializer = self.InputConfirmResetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
         reset_password(
-            reset_token=serializer.validated_data["reset_token"],
-            new_password=serializer.validated_data["new_password"],
+            new_password=data["new_password"],
+            reset_token=data.get("reset_token", ""),
+            phone=data.get("phone", ""),
+            code=data.get("code", ""),
         )
         return Response(status=204)
 

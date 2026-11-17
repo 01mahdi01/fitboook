@@ -45,13 +45,23 @@ def verify_password_reset_code(*, phone: str, code: str) -> str:
     return token
 
 
-def reset_password(*, reset_token: str, new_password: str) -> None:
-    token_key = _reset_token_key(reset_token)
-    phone = cache.get(token_key)
-    user = BaseUser.objects.filter(phone=phone, is_active=True).first() if phone else None
-    if user is None:
-        raise ApplicationError("Invalid or expired reset token.")
-    cache.delete(token_key)
+def reset_password(
+    *, new_password: str, reset_token: str = "", phone: str = "", code: str = ""
+) -> None:
+    """Either `reset_token` (3-step flow: request -> verify -> confirm) or `phone` + `code` (2-step flow used by
+    the shipped web/mobile app builds, which call confirm directly with the SMS code)."""
+    if reset_token:
+        token_key = _reset_token_key(reset_token)
+        phone = cache.get(token_key)
+        user = BaseUser.objects.filter(phone=phone, is_active=True).first() if phone else None
+        if user is None:
+            raise ApplicationError("Invalid or expired reset token.")
+        cache.delete(token_key)
+    else:
+        verify_otp(phone=phone, purpose=PASSWORD_RESET_OTP_PURPOSE, code=code)
+        user = BaseUser.objects.filter(phone=phone, is_active=True).first()
+        if user is None:
+            raise ApplicationError("Invalid or expired code.")
     user.set_password(new_password)
     user.token_version += 1
     user.save(update_fields=["password", "token_version"])
