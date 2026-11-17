@@ -9,6 +9,9 @@ urlpatterns = [
     path("api/purchases/", include("purchases.urls")),
     path("api/support/", include("support.urls")),
     path("api/sms/", include("sms.urls")),
+    # Expo Updates (OTA): these paths are a contract with the mobile app's app.json; do not change them.
+    path("api/updates/", include("ota.urls")),
+    path("api/admin/updates/", include("ota.admin_urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]

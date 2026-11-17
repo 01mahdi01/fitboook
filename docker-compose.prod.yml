@@ -38,6 +38,8 @@ services:
     volumes:
       - static_data:/app/staticfiles
       - video_uploads_tmp:/app/media/video_uploads_tmp
+      # Published Expo OTA bundles (ota app). Back this up together with postgres: DB rows point at these files.
+      - ota_updates:/app/ota-updates
 
   worker:
     build: .
@@ -80,5 +82,6 @@ volumes:
   minio_data:
   static_data:
   video_uploads_tmp:
+  ota_updates:
   certbot_conf:
   certbot_www:

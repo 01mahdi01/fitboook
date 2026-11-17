@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements/production.txt
 COPY . .
 
 RUN adduser --disabled-password --no-create-home --gecos "" appuser \
-    && mkdir -p /app/staticfiles /app/media/video_uploads_tmp \
+    && mkdir -p /app/staticfiles /app/media/video_uploads_tmp /app/ota-updates \
     && chown -R appuser /app
 USER appuser
 

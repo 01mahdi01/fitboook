@@ -24,6 +24,7 @@ LOCAL_APPS = [
     "storage.apps.StorageConfig",
     "support.apps.SupportConfig",
     "sms.apps.SmsConfig",
+    "ota",
 ]
 
 THIRD_PARTY_APPS = [
@@ -155,3 +156,4 @@ from config.settings.minio import *  # noqa
 from config.settings.swagger import *  # noqa
 from config.settings.zarinpal import *  # noqa
 from config.settings.smsir import *  # noqa
+from config.settings.ota import *  # noqa

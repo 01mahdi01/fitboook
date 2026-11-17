@@ -17,7 +17,7 @@ Endpoints marked "paginated" return `{"count", "next", "previous", "results"}` a
 | POST | `change-password/` | user | Change password; revokes all sessions |
 | POST | `password-reset/request/` | none | Send a 6-digit SMS code (valid 2 min, resend cooldown 60s; 204 even for unknown phones, 502 if the SMS provider fails) |
 | POST | `password-reset/verify/` | none | `phone` + `code` → single-use `reset_token` (10 min). 5 wrong codes burn the code (429) |
-| POST | `password-reset/confirm/` | none | `reset_token` + `new_password` + `confirm_password`; revokes all sessions |
+| POST | `password-reset/confirm/` | none | `new_password` + `confirm_password` + either `reset_token` (from `verify/`) or `phone` + `code` directly (the flow the shipped web/mobile builds use); revokes all sessions |
 | GET | `admin/` | admin | List/search users, paginated (`?search=` matches phone, email, or full name) |
 | GET/PATCH | `admin/<user_id>/` | admin | Get user / activate-deactivate / grant-revoke admin (`is_staff`) role — revoking either also revokes sessions |
 
@@ -76,3 +76,21 @@ Video fields: `title`, `description`, `order`, `duration_seconds`, `file_size_by
 | POST | `<ticket_id>/messages/` | owner/admin | Reply on a ticket; admin replies set status to `pending`, user replies set it back to `open` |
 | POST | `<ticket_id>/close/` | owner/admin | Close a ticket |
 | GET | `admin/` | admin | List all tickets, paginated, optional `?status=` filter |
+
+## OTA app updates (`/api/updates/`, `/api/admin/updates/`)
+
+Expo Updates v1 server (the `ota` app) so the mobile app gets JS/asset updates without a store release.
+Plain Django views, so they are **not** in Swagger. Full guide (Persian): `ota/README.md`.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/updates/manifest` | none | Expo client polls this (`expo-platform`, `expo-runtime-version`, `expo-protocol-version` headers). Contract with `app.json`, never change |
+| GET | `/api/updates/assets?asset=&runtimeVersion=&platform=` | none | Bundle/asset files (immutable, cacheable) |
+| GET | `/api/admin/updates/` | `X-Admin-Key` | List releases (`?runtimeVersion=&platform=&active=`) |
+| POST | `/api/admin/updates/publish/` | `X-Admin-Key` | multipart: `bundle` (zip of `npx expo export` output), `runtimeVersion`, `platform`, `notes`, `activate` |
+| POST | `/api/admin/updates/<id>/activate/` | `X-Admin-Key` | Serve this release again |
+| POST | `/api/admin/updates/<id>/deactivate/` | `X-Admin-Key` | Roll back to the previous release |
+| GET/POST | `/api/admin/updates/settings/` | `X-Admin-Key` | Read / toggle the global kill switch (`{"enabled": false}`) |
+
+`X-Admin-Key` = `OTA_ADMIN_TOKEN` from `.env`; a Django staff **session** (logged in at `/admin/`) also works, a JWT does not.
+Bundles are stored in the `ota_updates` docker volume; back it up together with postgres.
