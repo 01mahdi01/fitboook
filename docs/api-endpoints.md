@@ -1,6 +1,6 @@
 # API endpoints
 
-All routes are prefixed with `/api/`. Auth is JWT bearer (`Authorization: Bearer <access>`) unless noted. Full interactive schema: `/api/docs/`.
+All routes are prefixed with `/api/`. On `api.fitboook.ir`, nginx sends `/api/`, `/django-admin/` and `/static/` to Django, bucket paths to MinIO, and every other path to the PWA web app (`web/`). Auth is JWT bearer (`Authorization: Bearer <access>`) unless noted. Full interactive schema: `/api/docs/`.
 
 Endpoints marked "paginated" return `{"count", "next", "previous", "results"}` and accept `?page=` and `?page_size=` (default 20, max 100).
 
@@ -92,5 +92,5 @@ Plain Django views, so they are **not** in Swagger. Full guide (Persian): `ota/R
 | POST | `/api/admin/updates/<id>/deactivate/` | `X-Admin-Key` | Roll back to the previous release |
 | GET/POST | `/api/admin/updates/settings/` | `X-Admin-Key` | Read / toggle the global kill switch (`{"enabled": false}`) |
 
-`X-Admin-Key` = `OTA_ADMIN_TOKEN` from `.env`; a Django staff **session** (logged in at `/admin/`) also works, a JWT does not.
+`X-Admin-Key` = `OTA_ADMIN_TOKEN` from `.env`; a Django staff **session** (logged in at `/django-admin/`) also works, a JWT does not.
 Bundles are stored in the `ota_updates` docker volume; back it up together with postgres.

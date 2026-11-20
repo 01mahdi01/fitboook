@@ -85,7 +85,7 @@ class DjangoAdminTests(OTATestCase):
         self.client.logout()
         response = self.client.get(reverse("admin:ota_release_changelist"))
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login/", response["Location"])
+        self.assertIn(reverse("admin:login"), response["Location"])
 
     def test_non_staff_user_cannot_access_admin(self):
         user = get_user_model().objects.create_user(**{get_user_model().USERNAME_FIELD: "plain"}, password="pw")

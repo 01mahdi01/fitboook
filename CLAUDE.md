@@ -38,4 +38,14 @@ Overrides: `DEPLOY_SERVER`, `DEPLOY_DIR`, `HEALTH_URL` env vars.
 
 **Logs:** `ssh ubuntu@45.135.242.163 'cd video_application && sudo docker-compose -f docker-compose.prod.yml logs --tail 100 web'`
 
+## Web app (PWA)
+
+The PWA build lives in `web/` and nginx serves it at the root of `https://api.fitboook.ir` (no separate
+domain: `/api/`, `/django-admin/`, `/static/` -> Django, bucket paths -> MinIO, everything else -> PWA).
+New version: `scripts/install-web.sh "/path/to/fitboook-web-X.Y.Z"`, commit `web/`, `scripts/deploy-remote.sh`.
+The script drops source maps and widens the service worker's navigation denylist so it never hijacks Django
+admin / PDF / APK URLs; it fails loudly if a new build's service worker doesn't match the expected pattern.
+
+Django admin is at `/django-admin/`, because the PWA owns `/admin` for its own admin screens.
+
 First-time TLS setup: `scripts/init-letsencrypt.sh` (on the server).

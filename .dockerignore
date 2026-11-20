@@ -10,3 +10,5 @@ staticfiles
 media
 docs
 ota-updates/
+# PWA build: served by nginx from the repo checkout, not part of the Django image
+web

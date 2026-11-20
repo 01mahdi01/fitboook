@@ -3,7 +3,8 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    # Not "admin/": the web app (served at the domain root by nginx) owns /admin for its own admin panel.
+    path("django-admin/", admin.site.urls),
     path("api/users/", include("users.urls")),
     path("api/courses/", include("courses.urls")),
     path("api/purchases/", include("purchases.urls")),
